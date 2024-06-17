@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"io"
+	"log"
 	"os"
 	"strings"
 )
@@ -12,6 +13,7 @@ func InitConfig(path string) map[string]string {
 
 	f, err := os.Open(path)
 	if err != nil {
+		log.Printf("InitConfig error %+v", err)
 		panic(err)
 	}
 	defer f.Close()

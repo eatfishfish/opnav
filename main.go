@@ -467,6 +467,7 @@ func convertCareLL(coords string, tp1, tp2 int) *ResultLL {
 func httpSvr() {
 	http.HandleFunc("/directions/v5/mapbox/driving-traffic/", GetRoute)
 	addr := fmt.Sprintf("0.0.0.0:%s", port)
+	log.Printf("ListenAndServe start at %+v", addr)
 	err := http.ListenAndServe(addr, nil)
 	if err != nil {
 		log.Printf("ListenAndServe error %+v", err)
