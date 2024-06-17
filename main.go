@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"math"
 	"math/rand"
 	"net/http"
 	"os"
@@ -142,11 +143,11 @@ type Speed struct {
 }
 
 type Step struct {
-	Geometry          Geometry  `json:"geometry"`
-	Distance          float32   `json:"distance"`
-	BannerInstruction []float32 `json:"bannerInstructions"`
-	Duration          float32   `json:"duration"`
-	DurationTypical   float32   `json:"duration_typical"`
+	Geometry          Geometry `json:"geometry"`
+	Distance          float32  `json:"distance"`
+	BannerInstruction []string `json:"bannerInstructions"`
+	Duration          float32  `json:"duration"`
+	DurationTypical   float32  `json:"duration_typical"`
 }
 
 type Geometry struct {
@@ -259,8 +260,12 @@ func ConvertCareRoute2MapBoxRoute(cr *CareRoute) *MapBoxRoute {
 		shapepoints := strings.Split(setpShapepoint, ";")
 		speed_idx := 0
 		sp.Distance = float32(e.PartDistance)
-		sp.BannerInstruction = make([]float32, 0)
-		sp.Duration = float32(cr.RouteInfo[0].TotalTime)
+		if e.PartDistance == 0 {
+			sp.Distance = rb.Distance
+		}
+
+		sp.BannerInstruction = make([]string, 0)
+		sp.Duration = float32(rb.Duration)
 
 		ret := convertCareLL(setpShapepoint, 0, 2)
 		for i, ll := range ret.Result {
@@ -276,11 +281,41 @@ func ConvertCareRoute2MapBoxRoute(cr *CareRoute) *MapBoxRoute {
 			Coord[1] = float32(latW)
 			sp.Geometry.Coordinates = append(sp.Geometry.Coordinates, Coord)
 
+			//calc speed limit
+			var currentLng float64
+			var currentLat float64
+
+			temp := strings.Split(shapepoints[i], ",")
+			if len(temp) == 2 {
+				currentLng, _ = strconv.ParseFloat(temp[0], 32)
+				currentLat, _ = strconv.ParseFloat(temp[1], 32)
+			}
+
 			speed := 0
 			for _, uid := range cr.RouteInfo[0].UidInfo {
-				if strings.Contains(uid.Shapepoint, shapepoints[i]) {
-					speed = uid.Carspeedlimit
-					break
+				speedShapepoints := strings.Split(uid.Shapepoint, ";")
+				if len(speedShapepoints) == 2 {
+					sll := strings.Split(speedShapepoints[0], ",")
+					var longS float64
+					var latS float64
+					if len(sll) == 2 {
+						longS, _ = strconv.ParseFloat(sll[0], 32)
+						latS, _ = strconv.ParseFloat(sll[1], 32)
+					}
+
+					var longE float64
+					var latE float64
+					sll = strings.Split(speedShapepoints[1], ",")
+					if len(sll) == 2 {
+						longE, _ = strconv.ParseFloat(sll[0], 32)
+						latE, _ = strconv.ParseFloat(sll[1], 32)
+					}
+
+					if math.Abs(currentLng-longS) <= math.Abs(longS-longE) &&
+						math.Abs(currentLat-latS) <= math.Abs(latS-latE) {
+						speed = uid.Carspeedlimit
+						break
+					}
 				}
 			}
 
@@ -293,6 +328,8 @@ func ConvertCareRoute2MapBoxRoute(cr *CareRoute) *MapBoxRoute {
 				an.Maxspeed[speed_idx] = an.Maxspeed[speed_idx-1]
 			}
 			speed_idx++
+
+			sp.Duration = sp.Distance / ((1.0 / 3.6) * float32(speed))
 		}
 
 		if len(sp.Geometry.Coordinates) > 0 {
