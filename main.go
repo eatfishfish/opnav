@@ -329,7 +329,9 @@ func ConvertCareRoute2MapBoxRoute(cr *CareRoute) *MapBoxRoute {
 			}
 			speed_idx++
 
-			sp.Duration = sp.Distance / ((1.0 / 3.6) * float32(speed))
+			if speed > 1 {
+				sp.Duration = sp.Distance / ((1.0 / 3.6) * float32(speed))
+			}
 		}
 
 		if len(sp.Geometry.Coordinates) > 0 {
