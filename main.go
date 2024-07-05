@@ -221,6 +221,7 @@ func getWayPointsFromCareland(longStart, latStart, longEnd, latEnd int64) *MapBo
 	err = json.Unmarshal(body, &cr)
 	if err != nil {
 		fmt.Println(err)
+		fmt.Println(cr.ErrorMessage)
 		return nil
 	}
 
