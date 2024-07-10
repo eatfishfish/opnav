@@ -3,12 +3,14 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"math"
 	"math/rand"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -392,8 +394,35 @@ func main() {
 	httpSvr()
 }
 
+// GetIP returns request real ip.
+func GetIP(r *http.Request) (string, error) {
+	ip := r.Header.Get("X-Real-IP")
+	if net.ParseIP(ip) != nil {
+		return ip, nil
+	}
+
+	ip = r.Header.Get("X-Forward-For")
+	for _, i := range strings.Split(ip, ",") {
+		if net.ParseIP(i) != nil {
+			return i, nil
+		}
+	}
+
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return "", err
+	}
+
+	if net.ParseIP(ip) != nil {
+		return ip, nil
+	}
+
+	return "", errors.New("no valid ip found")
+}
+
 func GetRoute(w http.ResponseWriter, r *http.Request) {
-	log.Printf("GetRoute = %+v\n", r.URL.Path)
+	ip, _ := GetIP(r)
+	log.Printf("ip=%s GetRoute = %+v\n", ip, r.URL.Path)
 
 	temp := strings.Split(r.URL.Path, "/")
 	ll := temp[len(temp)-1]
